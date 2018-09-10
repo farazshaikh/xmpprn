@@ -7,7 +7,7 @@
  */
 import "./shim.js"
 import React, {Component} from 'react';
-import {Platform, StyleSheet, Text, View} from 'react-native';
+import {Platform, StyleSheet, Text, TextInput, View} from 'react-native';
 
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' + 'Cmd+D or shake for dev menu',
@@ -18,12 +18,37 @@ const instructions = Platform.select({
 
 import XMPP from 'stanza.io';
 
+
+
+
+
 type Props = {};
+
+class UselessTextInput extends Component {
+  render() {
+    return (
+<View style={{
+  borderLeftWidth: 1,
+  borderRightWidth: 1,
+  borderTopWidth: 1,
+  borderBottomWidth: 1
+}}>
+      <TextInput
+        {...this.props} // Inherit any props passed to it; e.g., multiline, numberOfLines below
+        editable = {true}
+        maxLength = {40}
+      />
+</View>
+    );
+  }
+}
+
 export default class App extends Component<Props> {
     constructor(props) {
         super(props);
         this.state = {
-            logs: []
+            logs: [],
+            text: "Say something"
         };
 
         this.addLog = this.addLog.bind(this);
@@ -33,14 +58,19 @@ export default class App extends Component<Props> {
         this.connectServer(); // uygulama başlayınca otomatik çalıştırıyorum
     }
 
-    addLog(log) {
-        this.state.logs.push(String(log));
+    addLog(log, align="right") {
+        while (this.state.logs.length > 10) {
+		this.state.logs.shift();
+        }
+        this.state.logs.push({text:String(log), align:String(align)});
         this.setState({logs: this.state.logs});
     }
 
+
+
     connectServer() {
         //This is tested using a locally configured ejabberd docker container
-        let client = XMPP.createClient({
+        let client = this.state.client = XMPP.createClient({
             jid: 'alice@emacsdesktop',
             password: 'alice',
 
@@ -59,11 +89,12 @@ export default class App extends Component<Props> {
         });
 
         client.on('chat', (msg) => {
-            client.sendMessage({
+            /*client.sendMessage({
                 to: msg.from,
                 body: 'You sent: ' + msg.body
             });
-            this.addLog(msg.from + ':' + msg.body)
+	    console.log(msg)*/
+            this.addLog(msg.from.local + ':' + msg.body)
         });
 
         client.on('raw:incoming', (xml) => {
@@ -111,21 +142,42 @@ export default class App extends Component<Props> {
         this.addLog('Tried connecting to a client');
     }
 
+  sendChat() {
+
+            this.state.client.sendMessage({
+                to: "bob@emacsdesktop",
+                body: this.state.text
+            });
+         this.addLog("Alice:" + this.state.text, align="left");
+        this.setState({text: ""});
+  }
+
   render() {
     return (
       <View style={styles.container}>
-        <Text style={styles.welcome}>fffff Welcome to React Native!</Text>
+        <Text style={styles.welcome}>XMPP React native using stanza.io</Text>
         <Text style={styles.instructions}>To get started, edit App.js</Text>
-            <Text style={styles.instructions}>
+	<View style={{alignSelf:'stretch'}}>
             {
                 this.state.logs.map((x, i) => (
-                        <Text
-                    key={i}>
-                        {x}
-                    </Text>
+                        <Text key={i} 
+                        style={
+                               {...styles.messages, ...{textAlign: x.align}}
+                              }>
+                        {x.text}
+                        </Text>
                 ))
             }
-        </Text>
+
+ 	<UselessTextInput
+         blurOnSubmit={false}
+         multiline = {false}
+         numberOfLines = {4}
+         onChangeText={(text) => this.setState({text})}
+         onSubmitEditing={this.sendChat.bind(this)}
+         value={this.state.text}
+       />
+         </View>
       </View>
     );
   }
@@ -133,8 +185,8 @@ export default class App extends Component<Props> {
 
 const styles = StyleSheet.create({
   container: {
+    top: 100,
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5FCFF',
   },
@@ -147,5 +199,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#333333',
     marginBottom: 5,
+  },
+  messages: {
+    color: 'darkblue',
   },
 });
